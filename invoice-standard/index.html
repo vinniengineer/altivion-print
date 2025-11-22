@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Invoice</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<style>
+  :root{
+    /* Core palette (Standard greys) */
+    --bg:#f6f7f8; --paper:#fff; --ink:#111827; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#2f2f2f; /* overridden by ?template_colour */
+    --pill:#d1d5db;
+
+    /* Standard greys for table */
+    --thead:#f3f4f6;
+    --row-alt:#fafafa;
+  }
+
+  *{ box-sizing:border-box }
+  html,body{ height:auto; min-height:100% }
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:13.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .sheet{
+    width:900px; max-width:95vw; margin:22px auto;
+    background:var(--paper); border:1px solid var(--line); border-radius:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,.05);
+    padding:28px 32px 26px;
+  }
+
+  /* Header */
+  .header{ display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center }
+  .brand{ display:flex; gap:12px; align-items:center }
+  .logo{
+    width:56px; height:56px; border:1px solid var(--line); border-radius:12px;
+    display:grid; place-items:center; overflow:hidden; background:#fff
+  }
+  .logo:empty{ display:none }
+  .logo img{ max-width:100%; max-height:100%; object-fit:contain }
+  .t1{ font-size:20px; font-weight:800; letter-spacing:.02em }
+  .t2{ font-size:12px; color:var(--muted); margin-top:2px }
+
+  .inv-title{ font-size:30px; letter-spacing:.04em; font-weight:900; color:var(--ink) }
+
+  /* Colored top divider (kept) */
+  .divider{
+    height:3px; border-radius:3px; margin:12px 0 4px;
+    background:linear-gradient(90deg, var(--accent) 0 15%, #c7c9cc 15% 100%);
+  }
+  .site{ display:none }
+
+  /* Meta blocks */
+  .meta{ display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:8px }
+  .box{ border:1px solid var(--line); border-radius:10px; padding:14px 16px; background:#fff }
+  .box h4{ margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:#4b5563 }
+  .mtitle{ font-weight:800; font-size:17px; margin:0 0 6px }
+  .kv{ display:grid; grid-template-columns:140px 1fr; gap:6px 12px; font-size:13px }
+  .label{ color:var(--muted) }
+
+  /* Right meta (borderless, aligned) */
+  .meta-plain{ border:none; background:transparent; padding:0; text-align:left }
+  .meta-plain .kv{ grid-template-columns:140px 1fr; margin-top:4px }
+  .meta-plain h4{ margin:10px 0 4px; text-transform:none; letter-spacing:0; font-weight:700; text-align:left }
+  .desc{ margin-top:8px; font-size:13px; color:#374151 }
+
+  /* Items */
+  h3.section{ margin:18px 0 10px; font-size:15px; font-weight:800; letter-spacing:.02em; text-align:center }
+  table{ width:100%; border-collapse:collapse }
+  thead th{
+    text-transform:uppercase; letter-spacing:.05em; font-size:10.5px; color:#4b5563;
+    border-bottom:none; padding:8px 10px; background:var(--thead); text-align:center;
+  }
+  tbody td{ padding:9px 10px; border-bottom:1px solid #eceff1; text-align:center; vertical-align:middle; font-size:12.5px }
+  tbody td.desc-cell{ text-align:left }
+  tbody tr:nth-child(2n){ background:var(--row-alt) }
+  td.num{ white-space:nowrap }
+
+  /* Totals & payment (same layout as Modern) */
+  .totals{ display:grid; grid-template-columns:1fr 260px; gap:16px; margin-top:16px; align-items:start }
+  .pay{ border:1px solid var(--line); border-radius:10px; padding:12px 14px; background:#fff }
+  .pay h5{ margin:0 0 8px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; font-size:12px; color:#4b5563 }
+  .pay p{ margin:0; font-size:13px }
+  .sum{ border:1px solid var(--line); border-radius:10px; background:#fff; padding:12px 14px }
+  .sum .row{ display:flex; justify-content:space-between; margin:4px 0 }
+  .sum .row .label{ color:#6b7280 }
+  
+  /* Grand Total pill */
+  .grand{
+    margin-top:8px;
+    background:#f3f4f6;              /* soft grey fill */
+    color:#111827;
+    padding:12px 14px;
+    border-radius:12px;               /* use 9999px if you want a rounder pill */
+    border:1px solid var(--line);     /* thin outline */
+    font-weight:900;
+    display:flex;
+    justify-content:space-between;
+  }
+
+  /* Thanks, signer, terms — match Modern behavior */
+  .thanks{ margin-top:16px; font-weight:700; text-align:right }
+  .sigwrap{ display:block; margin-top:14px; text-align:right; position:relative }
+  .sigwrap::before{ content:""; display:block; height:44px } /* space to hand-sign */
+  #signer{ font-weight:700; margin-top:2px }
+  .terms{ margin-top:12px; font-size:12px; color:#4b5563; text-align:right }
+
+  /* ===== Footer (icons row) — smaller icons, centered, wider address ===== */
+  .footer{
+    display:grid;
+    grid-template-columns: auto auto minmax(320px, 1fr); /* give address more room */
+    justify-content:center;         /* center entire group */
+    gap:18px 32px;
+    margin-top:18px; padding-top:14px;
+    border-top:1px solid #e5e7eb; color:#374151;
+    text-align:center;
+  }
+  .footer div{ display:flex; align-items:center; gap:10px; justify-content:center }
+  .icon{
+    width:22px; height:22px;                 /* smaller circle */
+    border:1px solid #d1d5db; border-radius:50%;
+    display:grid; place-items:center; padding:2px; background:#fff;
+  }
+  .icon svg{ width:14px; height:14px; stroke:#6b7280; fill:none; stroke-width:2; display:block }
+  .footer small{ font-size:12px; white-space:nowrap }
+  /* allow address to take space but truncate gracefully if too long */
+  .footer div:nth-child(3) small{
+    max-width:420px; display:inline-block; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  /* Print */
+  @media print {
+    @page { size:A4 portrait; margin:5mm }
+    .sheet{ width:200mm; margin:0 auto; padding:3mm 4mm 5mm; border:none; box-shadow:none }
+    body{ font-size:12.5px }
+    table thead th{ font-size:10px }
+    tbody td{ padding:6px }
+    tr,td,th{ page-break-inside:avoid; break-inside:avoid }
+  }
+  @supports (-webkit-touch-callout:none){
+    @media print {
+      body{ zoom:.88 }
+      .sheet{ width:auto; max-width:none; padding:3mm }
+    }
+  }
+
+  /* === Center footer row === */
+.footer{
+  grid-template-columns: auto auto auto; /* equal autos */
+  justify-content: center;               /* center the whole group */
+  gap: 18px 32px;                        /* spacing between blocks */
+  text-align: center;                    /* center the text in each cell */
+}
+
+.footer div{
+  justify-content: center;               /* center icon + text inside each cell */
+}
+
+.footer .nowrap{ white-space:nowrap; }
+.footer .addr{
+  white-space:nowrap;                    /* keep on one line if it fits */
+  overflow:hidden; text-overflow:ellipsis;
+  max-width: 380px;                      /* safety so it doesn’t push others */
+}
+
+  
+</style>
+</head>
+<body>
+  <div class="sheet">
+    <header class="header">
+      <div class="brand">
+        <div class="logo" id="from_logo_box"></div>
+        <div>
+          <div class="t1" id="brand_name">Company</div>
+          <div class="t2" id="brand_sub"></div>
+        </div>
+      </div>
+      <div class="right"><div class="inv-title" id="inv_title">INVOICE</div></div>
+    </header>
+    <div class="divider"></div>
+    <div class="site" id="brand_site"></div>
+
+    <section class="meta">
+      <div class="box">
+        <h4>Invoice To :</h4>
+        <div class="mtitle" id="client_name"></div>
+        <div class="kv" style="margin-top:6px">
+          <div class="label">Phone</div><div id="client_phone"></div>
+          <div class="label">Email</div><div id="client_email"></div>
+          <div class="label">Website</div><div id="client_website"></div>
+        </div>
+        <div class="kv" style="margin-top:10px">
+          <div class="label">Business Number</div><div id="client_business_number"></div>
+          <div class="label">Address</div><div id="client_address"></div>
+        </div>
+      </div>
+
+      <div class="box meta-plain">
+        <div class="kv">
+          <div class="label">Invoice no :</div><div id="invoice_number"></div>
+          <div class="label">Date :</div><div id="invoice_date"></div>
+        </div>
+        <h4>Invoice Description</h4>
+        <div class="desc" id="invoice_description"></div>
+      </div>
+    </section>
+
+    <h3 class="section">Items</h3>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:130px">Date of Work</th>
+          <th>Description</th>
+          <th style="width:120px">Price / Hourly Rate</th>
+          <th style="width:80px">Cost Qty</th>
+          <th style="width:140px">Cost Total</th>
+        </tr>
+      </thead>
+      <tbody id="items_body"></tbody>
+    </table>
+
+    <section class="totals">
+      <div class="pay">
+        <h5>Payment Method :</h5>
+        <p><strong>Company ABN</strong> : <span id="company_abn"></span></p>
+        <p><strong>Bank Name</strong> : <span id="bank_name"></span></p>
+        <p><strong>Account Name</strong> : <span id="bank_acc_name"></span></p>
+        <p><strong>Account Number</strong> : <span id="bank_acc_no"></span></p>
+        <p><strong>Account BSB</strong> : <span id="bank_bsb"></span></p>
+      </div>
+      <div class="sum">
+        <div class="row"><div class="label">Total Hours :</div><div id="total_hours">0</div></div>
+        <div class="row"><div class="label">Sub Total :</div><div id="subtotal">$0.00</div></div>
+        <div class="row"><div class="label">GST <span id="tax_rate_label"></span> :</div><div id="taxes">$0.00</div></div>
+        <div class="grand"><div>Grand Total :</div><div id="grand_total">$0.00</div></div>
+      </div>
+    </section>
+
+    <div class="thanks">Thank you for your business!</div>
+    <div class="sigwrap" id="sign_block"><div id="signer"></div></div>
+    <div class="terms" id="terms"></div>
+
+    <footer class="footer">
+      <div>
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><path d="M2 3h4l2 5-3 2a16 16 0 0 0 7 7l2-3 5 2v4a2 2 0 0 1-2 2c-9.94 0-18-8.06-18-18a2 2 0 0 1 2-2z"/></svg>
+        </span> <small id="from_phone_footer"></small>
+      </div>
+      <div>
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" ry="2"/><path d="M3 7l9 6 9-6"/></svg>
+        </span> <small id="from_email_footer"></small>
+      </div>
+      <div>
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><path d="M12 21s7-4.35 7-10a7 7 0 0 0-14 0c0 5.65 7 10 7 10z"/><circle cx="12" cy="11" r="3"/></svg>
+        </span> <small id="from_address_footer"></small>
+      </div>
+    </footer>
+  </div>
+
+<script>
+  const qp = new URLSearchParams(location.search);
+  const get = (k, d='') => qp.get(k) ?? d;
+  const ccy = get('ccy','AUD');
+
+  (function(){ const col=(get('template_colour','')||'').trim(); if(col){ document.documentElement.style.setProperty('--accent',col); } })();
+
+  const clean = v => { if(v==null||v==='') return 0; const n=parseFloat(String(v).replace(/[^0-9.-]/g,'')); return isNaN(n)?0:n; };
+  const money = n => Number(n||0).toLocaleString(undefined,{style:'currency',currency:ccy});
+  const esc = s => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  function setText(id, value){
+    const el=document.getElementById(id); if(!el) return;
+    if(value && String(value).trim()!==''){ el.textContent=value; el.style.display=''; }
+    else { el.textContent=''; el.style.display='none'; }
+  }
+
+  // Header brand
+  setText('brand_name', get('from_name','') || 'Invoice');
+  setText('brand_sub', get('from_web',''));
+  setText('brand_site','');
+
+  // Logo
+  (function(){
+    const logoBox=document.getElementById('from_logo_box');
+    const logo=(get('from_logo','')||'').trim();
+    if(logo){
+      const img=new Image(); img.alt='logo';
+      img.onload=()=>{ logoBox.innerHTML=''; logoBox.appendChild(img); };
+      img.onerror=()=>{ logoBox.style.display='none'; };
+      img.src=logo;
+    } else { logoBox.style.display='none'; }
+  })();
+
+  // Title
+  setText('inv_title', get('tax_invoice_title','INVOICE'));
+
+  // Right meta
+  setText('invoice_number', get('invoice_number',''));
+  (function(){
+    const raw=get('invoice_date',''); let out=raw; const d=new Date(raw);
+    if(!isNaN(d.getTime())){
+      const day=String(d.getDate()).padStart(2,'0');
+      const months=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      out=`${day} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+    setText('invoice_date', out);
+  })();
+
+  // Client
+  ['client_name','client_phone','client_email','client_website','client_business_number','client_address']
+    .forEach(id=>setText(id, get(id,'')));
+
+  // Description
+  setText('invoice_description', get('invoice_description',''));
+
+  // Payment / bank
+  setText('company_abn', get('from_business_no',''));
+  setText('bank_name', get('bank_name',''));
+  setText('bank_acc_name', get('bank_acc_name',''));
+  setText('bank_acc_no', get('bank_acc_no',''));
+  setText('bank_bsb', get('bank_bsb','') || get('bank_routing',''));
+
+  // Footer contact
+  setText('from_phone_footer', get('from_phone',''));
+  setText('from_email_footer', get('from_email',''));
+  setText('from_address_footer', get('from_address',''));
+
+  // Items
+  function parseItems(str){
+    if(!str) return [];
+    const rowSep=/(\|\||%7C%7C)/i, colSep=/(::|%3A%3A)/i;
+    return str.split(rowSep).filter(s=>!rowSep.test(s) && s!=='')
+      .map(row=>{
+        const parts=row.split(colSep).filter(s=>!colSep.test(s));
+        let date='',title='',price='',qty='',total='';
+        if(parts.length===5){ [date,title,price,qty,total]=parts; }
+        else { [title,price,qty,total]=parts; }
+        return {
+          date: decodeURIComponent(date||''),
+          title: decodeURIComponent(title||''),
+          price: clean(price),
+          qty: parseFloat(qty||0) || 0,
+          total: clean(total)
+        };
+      });
+  }
+  const items=parseItems(get('items',''));
+  const tbody=document.getElementById('items_body');
+  let subtotalFromItems=0;
+  items.forEach(it=>{
+    subtotalFromItems += it.total || 0;
+    const tr=document.createElement('tr');
+    tr.innerHTML = `
+      <td>${esc(it.date)}</td>
+      <td class="desc-cell">${esc(it.title)}</td>
+      <td class="num">${money(it.price)}</td>
+      <td>${(it.qty ?? 0).toLocaleString()}</td>
+      <td class="num">${money(it.total)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Totals
+  setText('total_hours', get('total_hours',''));
+  let subtotal=clean(get('subtotal','')); if(!subtotal && subtotalFromItems) subtotal=subtotalFromItems;
+  let taxRate=get('tax_rate',''); taxRate = (taxRate===''? '' : Number(String(taxRate).replace('%',''))); if(taxRate && taxRate>1) taxRate/=100;
+  let taxes=clean(get('taxes','')); if(!taxes && typeof taxRate==='number' && !isNaN(taxRate)) taxes=subtotal*taxRate;
+  let grand=clean(get('grand_total','')); if(!grand) grand=subtotal+taxes;
+
+  setText('subtotal', money(subtotal));
+  setText('taxes', money(taxes));
+  document.getElementById('tax_rate_label').textContent = (taxRate || taxRate===0) ? `(${(taxRate*100).toFixed(0)}%)` : '';
+  setText('grand_total', money(grand));
+
+  // Signer/terms
+  const signerText=[get('signer_name','').trim(), get('signer_role','').trim()].filter(Boolean).join(' · ');
+  if(signerText) document.getElementById('signer').textContent=signerText;
+  else document.getElementById('sign_block').style.display='none';
+
+  const terms=get('terms','').trim();
+  if(terms) document.getElementById('terms').textContent=terms;
+  else document.getElementById('terms').style.display='none';
+
+  // Auto-print
+  if(/^(1|true)$/i.test(get('print','').trim())){
+    window.addEventListener('load', ()=>{ try{ setTimeout(()=>window.print(),0) }catch{} });
+  }
+
+  // Hide labels/rows when value empty
+  function hideKVLabelIfEmpty(id){
+    const v=document.getElementById(id); if(!v) return;
+    const isEmpty=(v.textContent||'').trim()==='' || v.style.display==='none';
+    if(isEmpty){ const label=v.previousElementSibling; if(label?.classList?.contains('label')) label.style.display='none'; }
+  }
+  function hidePaymentLineIfEmpty(id){
+    const v=document.getElementById(id); if(!v) return;
+    const isEmpty=(v.textContent||'').trim()==='' || v.style.display==='none';
+    if(isEmpty && v.parentElement) v.parentElement.style.display='none';
+  }
+  function hideFooterColIfEmpty(id){
+    const v=document.getElementById(id); if(!v) return;
+    const isEmpty=(v.textContent||'').trim()==='' || v.style.display==='none';
+    if(isEmpty){ const col=v.closest('div'); if(col) col.style.display='none'; }
+  }
+  ['client_phone','client_email','client_website','client_business_number','client_address','invoice_number','invoice_date']
+    .forEach(hideKVLabelIfEmpty);
+  ['company_abn','bank_name','bank_acc_name','bank_acc_no','bank_bsb']
+    .forEach(hidePaymentLineIfEmpty);
+  ['from_phone_footer','from_email_footer','from_address_footer']
+    .forEach(hideFooterColIfEmpty);
+</script>
+</body>
+</html>
