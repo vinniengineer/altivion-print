@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Invoice</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<style>
+  :root{
+    /* Core palette */
+    --bg:#f6f7f8; --paper:#fff; --ink:#111827; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#2f2f2f; /* overridden by ?template_colour */
+  }
+
+  *{ box-sizing:border-box }
+  html,body{ height:auto; min-height:100% }
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:13.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .sheet{
+    width:900px; max-width:95vw; margin:22px auto;
+    background:var(--paper); border:1px solid var(--line); border-radius:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,.05);
+    padding:28px 32px 26px;
+  }
+
+  /* Header */
+  .header{ display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center }
+  .brand{ display:flex; gap:12px; align-items:center }
+  .logo{
+    width:56px; height:56px; border:1px solid var(--line); border-radius:12px;
+    display:grid; place-items:center; overflow:hidden; background:#fff
+  }
+  .logo:empty{ display:none }
+  .logo img{ max-width:100%; max-height:100%; object-fit:contain }
+  .t1{ font-size:20px; font-weight:800; letter-spacing:.02em }
+  .t2{ font-size:12px; color:var(--muted); margin-top:2px }
+  .inv-title{ font-size:30px; letter-spacing:.04em; font-weight:900; color:var(--ink) }
+
+  /* Colored top divider */
+  .divider{
+    height:3px; border-radius:3px; margin:12px 0 4px;
+    background:linear-gradient(90deg, var(--accent) 0 15%, #c7c9cc 15% 100%);
+  }
+
+  /* Meta blocks layout (same grid as Standard/Modern) */
+  .meta{ display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:8px }
+
+  /* Minimal look: client box borderless */
+  .box{ border:1px solid var(--line); border-radius:10px; padding:14px 16px; background:#fff }
+  .box.client{
+    border:none; background:transparent; padding:0; border-radius:0; box-shadow:none;
+  }
+  .box h4{ margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:#4b5563 }
+  .mtitle{ font-weight:800; font-size:17px; margin:0 0 6px }
+  .kv{ display:grid; grid-template-columns:140px 1fr; gap:6px 12px; font-size:13px }
+  .label{ color:var(--muted) }
+
+  /* Minimal look: right meta is plain (no box), lighter heading */
+  .meta-plain{ border:none; background:transparent; padding:0; text-align:left }
+  .meta-plain .kv{ grid-template-columns:140px 1fr; margin-top:4px }
+  .meta-plain h4{
+    margin:12px 0 6px; text-transform:none; letter-spacing:0;
+    font-weight:600; color:#374151; font-size:13px; text-align:left;
+  }
+  .desc{ margin-top:4px; font-size:13px; color:#374151 }
+
+  /* Items */
+  h3.section{ margin:18px 0 10px; font-size:15px; font-weight:800; letter-spacing:.02em; text-align:center }
+  table{ width:100%; border-collapse:collapse; table-layout:fixed; } /* fixed layout = mobile safe */
+  thead th{
+    text-transform:uppercase; letter-spacing:.05em; font-size:10.5px; color:#4b5563;
+    padding:8px 10px; text-align:center; border-bottom:1px solid var(--line); /* minimal head (no bg) */
+  }
+  /* Match the working widths from Standard/Modern */
+  thead th:nth-child(1){ width:130px }  /* Date of Work */
+  thead th:nth-child(3){ width:120px }  /* Price / Hourly Rate */
+  thead th:nth-child(4){ width:80px }   /* Cost Qty */
+  thead th:nth-child(5){ width:140px }  /* Cost Total */
+
+  tbody td{
+    padding:9px 10px; text-align:center; vertical-align:middle; font-size:12.5px;
+    border-bottom:none; /* minimal = no row lines */
+    overflow:hidden; text-overflow:ellipsis;
+  }
+  tbody td.desc-cell{ text-align:left; white-space:normal; word-break:break-word }
+  td.num{ white-space:nowrap }
+
+  /* Totals & Payment — minimal: no card borders */
+  .totals{ display:grid; grid-template-columns:1fr 260px; gap:16px; margin-top:16px; align-items:start }
+  .pay{ border:none; background:transparent; padding:0 }
+  .pay h5{ margin:0 0 8px; font-weight:800; text-transform:uppercase; font-size:12px; color:#4b5563 }
+  .pay p{ margin:0; font-size:13px }
+
+  .sum{ border:none; background:transparent; padding:0 }
+  .sum .row{ display:flex; justify-content:space-between; margin:4px 0 }
+  .sum .row .label{ color:#6b7280 }
+  .grand{
+    margin-top:8px; background:#f9fafb; color:#111827; padding:12px 14px; border-radius:12px;
+    font-weight:900; display:flex; justify-content:space-between; border:1px solid var(--line);
+  }
+
+  /* Thanks / signature / terms */
+  .thanks{ margin-top:16px; font-weight:700; text-align:right }
+  .sigwrap{ display:block; margin-top:14px; text-align:right; position:relative }
+  .sigwrap::before{ content:""; display:block; height:44px }
+  #signer{ font-weight:700; margin-top:2px }
+  .terms{ margin-top:12px; font-size:12px; color:#4b5563; text-align:right }
+
+  /* Minimal footer (dots) but keep Standard spacing so it lines up */
+  .footer{
+    display:flex; justify-content:center; align-items:center; gap:12px;
+    margin-top:18px; padding-top:14px; border-top:1px solid var(--line);
+    color:#374151; flex-wrap:wrap; text-align:center;
+  }
+  .footer small{ font-size:12px; white-space:nowrap }
+  .dot{ width:6px; height:6px; border-radius:50%; background:#cbd5e1 }
+
+  /* Print (same as Standard) */
+  @media print {
+    @page { size:A4 portrait; margin:5mm }
+    .sheet{ width:200mm; margin:0 auto; padding:3mm 4mm 5mm; border:none; box-shadow:none }
+    body{ font-size:12.5px }
+    table thead th{ font-size:10px }
+    tbody td{ padding:6px }
+    tr,td,th{ page-break-inside:avoid; break-inside:avoid }
+  }
+  @supports (-webkit-touch-callout:none){
+    @media print {
+      body{ zoom:.88 }
+      .sheet{ width:auto; max-width:none; padding:3mm }
+    }
+  }
+
+  /* iOS text-size zoom prevention */
+  html, body{ -webkit-text-size-adjust:100% }
+</style>
+</head>
+<body>
+  <div class="sheet">
+    <header class="header">
+      <div class="brand">
+        <div class="logo" id="from_logo_box"></div>
+        <div>
+          <div class="t1" id="brand_name">Company</div>
+          <div class="t2" id="brand_sub"></div>
+        </div>
+      </div>
+      <div class="right"><div class="inv-title" id="inv_title">INVOICE</div></div>
+    </header>
+    <div class="divider"></div>
+
+    <section class="meta">
+      <!-- CLIENT (borderless) -->
+      <div class="box client">
+        <h4>Invoice To :</h4>
+        <div class="mtitle" id="client_name"></div>
+        <div class="kv" style="margin-top:6px">
+          <div class="label">Phone</div><div id="client_phone"></div>
+          <div class="label">Email</div><div id="client_email"></div>
+          <div class="label">Website</div><div id="client_website"></div>
+        </div>
+        <div class="kv" style="margin-top:10px">
+          <div class="label">Business Number</div><div id="client_business_number"></div>
+          <div class="label">Address</div><div id="client_address"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT META (plain) -->
+      <div class="box meta-plain">
+        <div class="kv">
+          <div class="label">Invoice no :</div><div id="invoice_number"></div>
+          <div class="label">Date :</div><div id="invoice_date"></div>
+        </div>
+        <h4>Invoice Description</h4>
+        <div class="desc" id="invoice_description"></div>
+      </div>
+    </section>
+
+    <h3 class="section">Items</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Date of Work</th>
+          <th>Description</th>
+          <th>Price / Hourly Rate</th>
+          <th>Cost Qty</th>
+          <th>Cost Total</th>
+        </tr>
+      </thead>
+      <tbody id="items_body"></tbody>
+    </table>
+
+    <section class="totals">
+      <div class="pay">
+        <h5>Payment Method :</h5>
+        <p><strong>Company ABN</strong> : <span id="company_abn"></span></p>
+        <p><strong>Bank Name</strong> : <span id="bank_name"></span></p>
+        <p><strong>Account Name</strong> : <span id="bank_acc_name"></span></p>
+        <p><strong>Account Number</strong> : <span id="bank_acc_no"></span></p>
+        <p><strong>Account BSB</strong> : <span id="bank_bsb"></span></p>
+      </div>
+      <div class="sum">
+        <div class="row"><div class="label">Total Hours :</div><div id="total_hours">0</div></div>
+        <div class="row"><div class="label">Sub Total :</div><div id="subtotal">$0.00</div></div>
+        <div class="row"><div class="label">GST <span id="tax_rate_label"></span> :</div><div id="taxes">$0.00</div></div>
+        <div class="grand"><div>Grand Total :</div><div id="grand_total">$0.00</div></div>
+      </div>
+    </section>
+
+    <div class="thanks">Thank you for your business!</div>
+    <div class="sigwrap" id="sign_block"><div id="signer"></div></div>
+    <div class="terms" id="terms"></div>
+
+    <footer class="footer">
+      <small id="from_phone_footer"></small>
+      <span class="dot"></span>
+      <small id="from_email_footer"></small>
+      <span class="dot"></span>
+      <small id="from_address_footer"></small>
+    </footer>
+  </div>
+
+<script>
+  const qp = new URLSearchParams(location.search);
+  const get = (k, d='') => qp.get(k) ?? d;
+  const ccy = get('ccy','AUD');
+
+  // Accent color override
+  (function(){
+    const col=(get('template_colour','')||'').trim();
+    if(col){ document.documentElement.style.setProperty('--accent', col); }
+  })();
+
+  const clean = v => { if(v==null||v==='') return 0; const n=parseFloat(String(v).replace(/[^0-9.-]/g,'')); return isNaN(n)?0:n; };
+  const money = n => Number(n||0).toLocaleString(undefined,{style:'currency',currency:ccy});
+  const esc = s => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  function setText(id, value){
+    const el=document.getElementById(id); if(!el) return;
+    if(value && String(value).trim()!==''){ el.textContent=value; el.style.display=''; }
+    else { el.textContent=''; el.style.display='none'; }
+  }
+
+  // Header brand
+  setText('brand_name', get('from_name','') || 'Invoice');
+  setText('brand_sub', get('from_web',''));
+
+  // Logo
+  (function(){
+    const logoBox=document.getElementById('from_logo_box');
+    const logo=(get('from_logo','')||'').trim();
+    if(logo){
+      const img=new Image(); img.alt='logo';
+      img.onload=()=>{ logoBox.innerHTML=''; logoBox.appendChild(img); };
+      img.onerror=()=>{ logoBox.style.display='none'; };
+      img.src=logo;
+    } else { logoBox.style.display='none'; }
+  })();
+
+  // Title
+  setText('inv_title', get('tax_invoice_title','INVOICE'));
+
+  // Meta
+  setText('invoice_number', get('invoice_number',''));
+  (function(){
+    const raw=get('invoice_date',''); let out=raw; const d=new Date(raw);
+    if(!isNaN(d.getTime())){
+      const day=String(d.getDate()).padStart(2,'0');
+      const months=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      out=`${day} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+    setText('invoice_date', out);
+  })();
+
+  // Client
+  ['client_name','client_phone','client_email','client_website','client_business_number','client_address']
+    .forEach(id=>setText(id, get(id,'')));
+
+  // Description
+  setText('invoice_description', get('invoice_description',''));
+
+  // Payment / bank
+  setText('company_abn', get('from_business_no',''));
+  setText('bank_name', get('bank_name',''));
+  setText('bank_acc_name', get('bank_acc_name',''));
+  setText('bank_acc_no', get('bank_acc_no',''));
+  setText('bank_bsb', get('bank_bsb','') || get('bank_routing',''));
+
+  // Footer contact
+  setText('from_phone_footer', get('from_phone',''));
+  setText('from_email_footer', get('from_email',''));
+  setText('from_address_footer', get('from_address',''));
+
+  // Items
+  function parseItems(str){
+    if(!str) return [];
+    const rowSep=/(\|\||%7C%7C)/i, colSep=/(::|%3A%3A)/i;
+    return str.split(rowSep).filter(s=>!rowSep.test(s) && s!=='')
+      .map(row=>{
+        const parts=row.split(colSep).filter(s=>!colSep.test(s));
+        let date='',title='',price='',qty='',total='';
+        if(parts.length===5){ [date,title,price,qty,total]=parts; }
+        else { [title,price,qty,total]=parts; }
+        return {
+          date: decodeURIComponent(date||''),
+          title: decodeURIComponent(title||''),
+          price: clean(price),
+          qty: parseFloat(qty||0) || 0,
+          total: clean(total)
+        };
+      });
+  }
+  const items=parseItems(get('items',''));
+  const tbody=document.getElementById('items_body');
+  let subtotalFromItems=0;
+  items.forEach(it=>{
+    subtotalFromItems += it.total || 0;
+    const tr=document.createElement('tr');
+    tr.innerHTML = `
+      <td>${esc(it.date)}</td>
+      <td class="desc-cell">${esc(it.title)}</td>
+      <td class="num">${money(it.price)}</td>
+      <td>${(it.qty ?? 0).toLocaleString()}</td>
+      <td class="num">${money(it.total)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Totals
+  setText('total_hours', get('total_hours',''));
+  let subtotal=clean(get('subtotal','')); if(!subtotal && subtotalFromItems) subtotal=subtotalFromItems;
+  let taxRate=get('tax_rate',''); taxRate = (taxRate===''? '' : Number(String(taxRate).replace('%',''))); if(taxRate && taxRate>1) taxRate/=100;
+  let taxes=clean(get('taxes','')); if(!taxes && typeof taxRate==='number' && !isNaN(taxRate)) taxes=subtotal*taxRate;
+  let grand=clean(get('grand_total','')); if(!grand) grand=subtotal+taxes;
+
+  setText('subtotal', money(subtotal));
+  setText('taxes', money(taxes));
+  document.getElementById('tax_rate_label').textContent = (taxRate || taxRate===0) ? `(${(taxRate*100).toFixed(0)}%)` : '';
+  setText('grand_total', money(grand));
+
+  // Signer/terms
+  const signerText=[get('signer_name','').trim(), get('signer_role','').trim()].filter(Boolean).join(' · ');
+  if(signerText) document.getElementById('signer').textContent=signerText;
+  else document.getElementById('sign_block').style.display='none';
+
+  const terms=get('terms','').trim();
+  if(terms) document.getElementById('terms').textContent=terms;
+  else document.getElementById('terms').style.display='none';
+
+  // Auto-print
+  if(/^(1|true)$/i.test(get('print','').trim())){
+    window.addEventListener('load', ()=>{ try{ setTimeout(()=>window.print(),0) }catch{} });
+  }
+</script>
+</body>
+</html>
